@@ -10,10 +10,10 @@ import blacklistUas from './modules/blacklist-uas/blacklist-uas.js'
 import Umbreld, {type UmbreldOptions} from './index.js'
 
 // Blacklists uas drivers early in the boot process
-if (process.argv.includes('blacklist-uas')) {
-	await blacklistUas()
-	process.exit(0)
-}
+// if (process.argv.includes('blacklist-uas')) {
+// 	await blacklistUas()
+// 	process.exit(0)
+// }
 
 // Quick trpc client for testing
 if (process.argv.includes('client')) {
@@ -67,10 +67,23 @@ async function cleanShutdown(signal: string) {
 
 	umbreld.logger.log(`Received ${signal}, shutting down cleanly...`)
 	await umbreld.stop()
-	process.exit(0)
+	process.exit(130)
 }
 process.on('SIGINT', cleanShutdown.bind(null, 'SIGINT'))
 process.on('SIGTERM', cleanShutdown.bind(null, 'SIGTERM'))
+
+let isRebooting = false
+async function doReboot(signal: string) {
+	if (isRebooting) return
+	isRebooting = true
+
+	umbreld.logger.log(`Rebooting...`)
+	await Promise.all([umbreld.apps.stop(), umbreld.appStore.stop()])
+	await Promise.all([umbreld.apps.start(), umbreld.appStore.start()])
+	setSystemStatus('running')
+	isRebooting = false
+}
+process.on('SIGUSR1', doReboot.bind(null, 'SIGUSR1'))
 
 try {
 	await umbreld.start()

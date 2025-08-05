@@ -24,6 +24,17 @@ async function writeYaml(path: string, data: any) {
 	return fse.writeFile(path, yaml.dump(data))
 }
 
+async function patchYaml(path: string) {
+	let yaml = await fse.readFile(path, 'utf8')
+
+	const find = '$APP_LIGHTNING_NODE_REST_PORT:$APP_LIGHTNING_NODE_REST_PORT'
+	if (!yaml.includes(find)) return true
+	yaml = yaml.replace(find, '8558:$APP_LIGHTNING_NODE_REST_PORT');
+
+	await fse.writeFile(path, yaml)
+	return true
+}
+
 export async function readManifestInDirectory(dataDirectory: string) {
 	const parseYaml = readYaml(`${dataDirectory}/umbrel-app.yml`)
 	return parseYaml.then(validateManifest)
@@ -75,6 +86,10 @@ export default class App {
 		return readYaml(`${this.dataDirectory}/docker-compose.yml`) as Promise<Compose>
 	}
 
+	patchCompose() {
+		return patchYaml(`${this.dataDirectory}/docker-compose.yml`)
+	}
+
 	async readHiddenService() {
 		try {
 			return await fse.readFile(`${this.#umbreld.dataDirectory}/tor/data/app-${this.id}/hostname`, 'utf-8')
@@ -122,6 +137,7 @@ export default class App {
 		}
 
 		await this.writeCompose(compose)
+		await this.patchCompose()
 	}
 
 	async pull() {

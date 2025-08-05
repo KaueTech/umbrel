@@ -87,28 +87,23 @@ export default class Samba {
 		this.logger.log('Starting samba')
 
 		// Make sure the share password exists and is applied
-		await this.applySharePassword().catch((error) => {
-			this.logger.error(`Failed to apply share password`, error)
-		})
+		// try {
+		// 	const sharePassword = await this.getSharePassword()
+		// 	await $({
+		// 		input: `${sharePassword}\n${sharePassword}\n`,
+		// 	})`smbpasswd -s -a umbrel`
+		// } catch (error) {
+		// 	this.logger.error(`Failed to apply share password: ${(error as Error).message}`)
+		// }
 
-		// Apply shares (and start Samba/wsdd2 if needed)
-		await this.applyShares().catch((error) => {
-			this.logger.error(`Failed to apply shares`, error)
-		})
-
-		// Attach listener
-		this.#removeFileChangeListener = this.#umbreld.eventBus.on(
-			'files:watcher:change',
-			this.#handleFileChange.bind(this),
-		)
+		// Generate share config and start/stop Samba accordingly
+		await this.syncShares().catch((error) => this.logger.error(`Failed to synchronize shares: ${error.message}`))
 	}
 
 	// Remove listener
 	async stop() {
 		this.logger.log('Stopping samba')
-		this.#removeFileChangeListener?.()
-		await $`systemctl stop smbd`.catch((error) => this.logger.error(`Failed to stop samba`, error))
-		await $`systemctl stop wsdd2`.catch((error) => this.logger.error(`Failed to stop wsdd2`, error))
+		//await $`killall --wait smbd`.catch((error) => this.logger.error(`Failed to stop smbd: ${error.message}`))
 	}
 
 	// Gets the share password
@@ -165,23 +160,23 @@ export default class Samba {
 		await fse.writeFile('/etc/samba/smb.conf', config)
 
 		// If we don't have any shares, ensure samba isn't running and return
-		if (shares.length === 0) return await $`systemctl stop smbd`
+		// if (shares.length === 0) return await $`systemctl stop smbd`
 
 		// Otherwise start samba, or reload it's config if it's already running
-		await $`systemctl start smbd`
-		await $`smbcontrol smbd reload-config`
+		// await $`systemctl start smbd`
+		// await $`smbcontrol smbd reload-config`
 
 		// We also start wsdd2 for better Windows discovery.
 		// We need to manually start this along with samba because if we boot with wsdd2
 		// enabled but without samba it will shutdown when it sees samba isn't running.
 		// It won't then auto start if a share is added later.
-		await $`systemctl start wsdd2`
+		// await $`systemctl start wsdd2`
 	}
 
 	// Read current shares from the store
 	async #get() {
-		const shares = await this.#umbreld.store.get('files.shares')
-		return shares || []
+		// const shares = await this.#umbreld.store.get('files.shares')
+		return []
 	}
 
 	// Remove shares on deletion

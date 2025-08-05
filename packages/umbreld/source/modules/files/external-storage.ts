@@ -27,55 +27,58 @@ type BlockDevice = {
 // Get block devices
 // TODO: This should probably be in a system module once we have a proper one
 export async function getBlockDevices() {
-	type LsBlkDevice = {
-		name: string
-		label?: string
-		type?: string
-		mountpoints?: string[]
-		tran?: BlockDevice['transport']
-		model?: string
-		size?: number
-		children?: LsBlkDevice[]
-		parttypename?: string
-	}
-	const {stdout} = await $`lsblk --output-all --json --bytes`
-	const {blockdevices} = JSON.parse(stdout) as {blockdevices: LsBlkDevice[]}
 
-	// Loop over block devices
-	const externalStorageDevices: BlockDevice[] = []
-	for (const blockDevice of blockdevices) {
-		// Skip non-disk block devices
-		if (blockDevice.type !== 'disk') continue
+	return [] as BlockDevice[]
 
-		// Create a new external storage device
-		const device: BlockDevice = {
-			id: blockDevice.name,
-			name: blockDevice.model ?? 'Untitled',
-			transport: blockDevice.tran ?? 'unknown',
-			size: blockDevice.size ?? 0,
-			partitions: [],
-		}
+	// type LsBlkDevice = {
+	// 	name: string
+	// 	label?: string
+	// 	type?: string
+	// 	mountpoints?: string[]
+	// 	tran?: BlockDevice['transport']
+	// 	model?: string
+	// 	size?: number
+	// 	children?: LsBlkDevice[]
+	// 	parttypename?: string
+	// }
+	// const {stdout} = await $`lsblk --output-all --json --bytes`
+	// const {blockdevices} = JSON.parse(stdout) as {blockdevices: LsBlkDevice[]}
 
-		// Create partitions
-		for (const partition of blockDevice.children ?? []) {
-			// Skip any non-partition block devices
-			if (partition.type !== 'part') continue
+	// // Loop over block devices
+	// const externalStorageDevices: BlockDevice[] = []
+	// for (const blockDevice of blockdevices) {
+	// 	// Skip non-disk block devices
+	// 	if (blockDevice.type !== 'disk') continue
 
-			// Add the partition to the device
-			device.partitions.push({
-				id: partition.name,
-				type: partition.parttypename ?? 'unknown',
-				label: partition.label?.trim() ?? 'Untitled',
-				size: partition.size ?? 0,
-				mountpoints: partition.mountpoints?.filter(Boolean) ?? [],
-			})
-		}
+	// 	// Create a new external storage device
+	// 	const device: BlockDevice = {
+	// 		id: blockDevice.name,
+	// 		name: blockDevice.model ?? 'Untitled',
+	// 		transport: blockDevice.tran ?? 'unknown',
+	// 		size: blockDevice.size ?? 0,
+	// 		partitions: [],
+	// 	}
 
-		// Add the device to the list
-		externalStorageDevices.push(device)
-	}
+	// 	// Create partitions
+	// 	for (const partition of blockDevice.children ?? []) {
+	// 		// Skip any non-partition block devices
+	// 		if (partition.type !== 'part') continue
 
-	return externalStorageDevices
+	// 		// Add the partition to the device
+	// 		device.partitions.push({
+	// 			id: partition.name,
+	// 			type: partition.parttypename ?? 'unknown',
+	// 			label: partition.label?.trim() ?? 'Untitled',
+	// 			size: partition.size ?? 0,
+	// 			mountpoints: partition.mountpoints?.filter(Boolean) ?? [],
+	// 		})
+	// 	}
+
+	// 	// Add the device to the list
+	// 	externalStorageDevices.push(device)
+	// }
+
+	// return externalStorageDevices
 }
 
 export default class ExternalStorage {
@@ -143,16 +146,16 @@ export default class ExternalStorage {
 			// type that is always unknown.
 			// If we don't do this we'll end up mounting all partitions as "Untitled".
 			let externalStorageDevices: BlockDevice[] = []
-			await pWaitFor(
-				async () => {
-					externalStorageDevices = await this.#getExternalDevices()
-					const hasMissingData = externalStorageDevices.some((device) =>
-						device.partitions.some((partition) => partition.type === 'unknown'),
-					)
-					return !hasMissingData
-				},
-				{interval: 100, timeout: {milliseconds: 2000, fallback: () => {}}},
-			)
+			// await pWaitFor(
+			// 	async () => {
+			// 		externalStorageDevices = await this.#getExternalDevices()
+			// 		const hasMissingData = externalStorageDevices.some((device) =>
+			// 			device.partitions.some((partition) => partition.type === 'unknown'),
+			// 		)
+			// 		return !hasMissingData
+			// 	},
+			// 	{interval: 100, timeout: {milliseconds: 2000, fallback: () => {}}},
+			// )
 
 			// Loop over external devices
 			for (const device of externalStorageDevices) {
@@ -240,10 +243,12 @@ export default class ExternalStorage {
 	// Get external devices
 	async #getExternalDevices() {
 		// Get all block devices
-		const blockDevices = await getBlockDevices()
+		// const blockDevices = await getBlockDevices()
 
-		// Filter out any non-USB devices
-		return blockDevices.filter((device) => device.transport === 'usb')
+		// // Filter out any non-USB devices
+		// return blockDevices.filter((device) => device.transport === 'usb')
+
+		return [] as BlockDevice[]
 	}
 
 	// Get all umbreld mounted external devices
@@ -252,27 +257,30 @@ export default class ExternalStorage {
 	// This will only return the virtual path of the /External mount point
 	async getMountedExternalDevices() {
 		// Get all block devices
-		const externalBlockDevices = await this.#getExternalDevices()
 
-		// Loop over devices
-		const externalBaseSystemPath = this.#umbreld.files.getBaseDirectory('/External')
-		for (const device of externalBlockDevices) {
-			// Loop over partitions
-			for (const partition of device.partitions) {
-				// Format partitions to only contain /External mount points
-				partition.mountpoints = partition.mountpoints
-					.filter((mountpoint) => mountpoint.startsWith(externalBaseSystemPath))
-					.map((mountpoint) => this.#umbreld.files.systemToVirtualPath(mountpoint))
-			}
+		return [] as BlockDevice[]
+		
+		// const externalBlockDevices = await this.#getExternalDevices()
 
-			// Filter out partitions without mount points from device
-			device.partitions = device.partitions.filter((partition) => partition.mountpoints.length > 0)
-		}
+		// // Loop over devices
+		// const externalBaseSystemPath = this.#umbreld.files.getBaseDirectory('/External')
+		// for (const device of externalBlockDevices) {
+		// 	// Loop over partitions
+		// 	for (const partition of device.partitions) {
+		// 		// Format partitions to only contain /External mount points
+		// 		partition.mountpoints = partition.mountpoints
+		// 			.filter((mountpoint) => mountpoint.startsWith(externalBaseSystemPath))
+		// 			.map((mountpoint) => this.#umbreld.files.systemToVirtualPath(mountpoint))
+		// 	}
 
-		// Filter out block devices without partitions
-		const mountedExternalDevices = externalBlockDevices.filter((device) => device.partitions.length > 0)
+		// 	// Filter out partitions without mount points from device
+		// 	device.partitions = device.partitions.filter((partition) => partition.mountpoints.length > 0)
+		// }
 
-		return mountedExternalDevices
+		// // Filter out block devices without partitions
+		// const mountedExternalDevices = externalBlockDevices.filter((device) => device.partitions.length > 0)
+
+		// return mountedExternalDevices
 	}
 
 	// Unmount all mounted external devices
@@ -292,26 +300,26 @@ export default class ExternalStorage {
 	// Clean left over mount points
 	async #cleanLeftOverMountPoints() {
 		// Loop over all mount points in /External
-		const externalBaseSystemPath = this.#umbreld.files.getBaseDirectory('/External')
-		const mountPoints = await fse.readdir(externalBaseSystemPath)
-		for (const mountPoint of mountPoints) {
-			try {
-				// Check if any are not currently used and safe to remove
-				const mountPointSystemPath = nodePath.join(externalBaseSystemPath, mountPoint)
-				const isMountPointEmpty = (await fse.readdir(mountPointSystemPath)).length === 0
-				const isMountPointUnmounted = (await $({reject: false})`mountpoint ${mountPointSystemPath}`).exitCode !== 0
-				const isSafeToRemove = isMountPointEmpty && isMountPointUnmounted
+		// const externalBaseSystemPath = this.#umbreld.files.getBaseDirectory('/External')
+		// const mountPoints = await fse.readdir(externalBaseSystemPath)
+		// for (const mountPoint of mountPoints) {
+		// 	try {
+		// 		// Check if any are not currently used and safe to remove
+		// 		const mountPointSystemPath = nodePath.join(externalBaseSystemPath, mountPoint)
+		// 		const isMountPointEmpty = (await fse.readdir(mountPointSystemPath)).length === 0
+		// 		const isMountPointUnmounted = (await $({reject: false})`mountpoint ${mountPointSystemPath}`).exitCode !== 0
+		// 		const isSafeToRemove = isMountPointEmpty && isMountPointUnmounted
 
-				// Remove the mount point if it's safe to do so
-				if (isSafeToRemove) {
-					this.logger.log(`Cleaning up left over mount point ${mountPoint}`)
-					await fse.remove(mountPointSystemPath)
-				}
-			} catch (error) {
-				// Just log the error and continue to next mount point
-				this.logger.error(`Failed to clean up left over mount point ${mountPoint}`, error)
-			}
-		}
+		// 		// Remove the mount point if it's safe to do so
+		// 		if (isSafeToRemove) {
+		// 			this.logger.log(`Cleaning up left over mount point ${mountPoint}`)
+		// 			await fse.remove(mountPointSystemPath)
+		// 		}
+		// 	} catch (error) {
+		// 		// Just log the error and continue to next mount point
+		// 		this.logger.error(`Failed to clean up left over mount point ${mountPoint}`, error)
+		// 	}
+		// }
 	}
 
 	// Check if an external drive is connected on non-Umbrel Home hardware

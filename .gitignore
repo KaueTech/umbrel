@@ -54,3 +54,5 @@ data/
 .umbrel-dev
 jwt
 ./bin
+
+umbrel

@@ -124,7 +124,7 @@ export default class Files {
 			['/Home', `${umbreld.dataDirectory}/home`],
 			['/Trash', `${umbreld.dataDirectory}/trash`],
 			['/Apps', `${umbreld.dataDirectory}/app-data`],
-			['/External', `${umbreld.dataDirectory}/external`],
+			// ['/External', `${umbreld.dataDirectory}/external`],
 		])
 
 		this.watcher = new Watcher(umbreld, {paths: ['/Home', '/Trash', '/Apps']})
@@ -147,7 +147,7 @@ export default class Files {
 		await Promise.all(
 			[...this.baseDirectories.keys()].map((baseDirectory) =>
 				this.createDirectory(baseDirectory).catch((error) => {
-					this.logger.error(`Failed to ensure directory '${baseDirectory}' exists`, error)
+					this.logger.error(` 1 Failed to ensure directory '${baseDirectory}' exists`, error)
 				}),
 			),
 		)
@@ -179,7 +179,7 @@ export default class Files {
 		const defaultFavourites = ['/Home/Downloads', '/Home/Documents', '/Home/Photos', '/Home/Videos']
 		for (const favorite of defaultFavourites) {
 			await this.createDirectory(favorite).catch((error) =>
-				this.logger.error(`Failed to ensure directory '${favorite}' exists`, error),
+				this.logger.error(`3 Failed to ensure directory '${favorite}' exists`, error),
 			)
 			await this.favorites
 				.addFavorite(favorite)
@@ -267,7 +267,7 @@ export default class Files {
 
 		// Get the type
 		let type
-		if (stats.isDirectory()) type = 'directory'
+		if (stats.isDirectory() || stats.isSymbolicLink()) type = 'directory'
 		else if (stats.isSymbolicLink()) type = 'symbolic-link'
 		else if (stats.isSocket()) type = 'socket'
 		else if (stats.isBlockDevice()) type = 'block-device'
@@ -477,7 +477,8 @@ export default class Files {
 		// TODO: Check we have enough free space on the destination
 
 		// Add trailing slash to source path if it's a directoryso we only copy the contents
-		if ((await fse.lstat(sourceSystemPath)).isDirectory()) sourceSystemPath = `${sourceSystemPath}/`
+		const sourceSystemPathStats = await fse.lstat(sourceSystemPath)
+		if (sourceSystemPathStats.isDirectory() || sourceSystemPathStats.isSymbolicLink()) sourceSystemPath = `${sourceSystemPath}/`
 
 		// Build absolute destination path
 		let destinationSystemPath = nodePath.join(destinationSystemDirectory, nodePath.basename(sourceSystemPath))
@@ -534,7 +535,8 @@ export default class Files {
 		})
 
 		// Add trailing slash to source path if it's a directoryso we only copy the contents
-		if ((await fse.lstat(sourceSystemPath)).isDirectory()) sourceSystemPath = `${sourceSystemPath}/`
+		const sourceSystemPathStats = await fse.lstat(sourceSystemPath)
+		if (sourceSystemPathStats.isDirectory() || sourceSystemPathStats.isSymbolicLink()) sourceSystemPath = `${sourceSystemPath}/`
 
 		// Build absolute destination path
 		let destinationSystemPath = nodePath.join(destinationSystemDirectory, nodePath.basename(sourceSystemPath))
@@ -723,7 +725,7 @@ export default class Files {
 		try {
 			const file = await fse.lstat(await this.virtualToSystemPath(virtualPath))
 			isFile = file.isFile()
-			isDirectory = file.isDirectory()
+			isDirectory = file.isDirectory() || file.isSymbolicLink()
 		} catch {}
 
 		// Start with all operations
@@ -870,7 +872,7 @@ export default class Files {
 		const deepestExistingPath = await getDeepestExistingPath(systemPath)
 		const deepestExistingRealPath = await fse.realpath(deepestExistingPath)
 		const realPath = systemPath.replace(deepestExistingPath, deepestExistingRealPath)
-		if (!realPath.startsWith(basePath)) throw new Error(`[escapes-base] '${virtualPath}' escapes '${basePath}'`)
+		// if (!realPath.startsWith(basePath)) throw new Error(`[escapes-base] '${virtualPath}' escapes '${basePath}' realpath: '${realPath}'`)
 
 		// We return the system path not the real path because at this point we know
 		// the path is safe and we want to return the path as it was passed in.

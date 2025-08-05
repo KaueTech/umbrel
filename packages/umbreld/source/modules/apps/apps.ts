@@ -34,22 +34,22 @@ export default class Apps {
 	// 0.5.4 installs didn't clean up properly on shutdown and it causes critical errors
 	// bringing up containers in 1.0.
 	async cleanDockerState() {
-		try {
-			const containerIds = (await $`docker ps -aq`).stdout.split('\n').filter(Boolean)
-			if (containerIds.length) {
-				this.logger.log('Cleaning up old containers...')
-				await $({stdio: 'inherit'})`docker stop --time 30 ${containerIds}`
-				await $({stdio: 'inherit'})`docker rm ${containerIds}`
-			}
-		} catch (error) {
-			this.logger.error(`Failed to clean containers`, error)
-		}
-		try {
-			this.logger.log('Cleaning up old networks...')
-			await $({stdio: 'inherit'})`docker network prune -f`
-		} catch (error) {
-			this.logger.error(`Failed to clean networks`, error)
-		}
+		// try {
+		// 	const containerIds = (await $`docker ps -aq`).stdout.split('\n').filter(Boolean)
+		// 	if (containerIds.length) {
+		// 		this.logger.log('Cleaning up old containers...')
+		// 		await $({stdio: 'inherit'})`docker stop --time 30 ${containerIds}`
+		// 		await $({stdio: 'inherit'})`docker rm ${containerIds}`
+		// 	}
+		// } catch (error) {
+		// 	this.logger.error(`Failed to clean containers`, error)
+		// }
+		// try {
+		// 	this.logger.log('Cleaning up old networks...')
+		// 	await $({stdio: 'inherit'})`docker network prune -f`
+		// } catch (error) {
+		// 	this.logger.error(`Failed to clean networks`, error)
+		// }
 	}
 
 	async start() {
@@ -111,7 +111,7 @@ export default class Apps {
 
 		// Attempt to pre-load local Docker images
 		try {
-			// Loop over iamges in /images
+			// Loop over images in /images
 			const images = await fse.readdir(`/images`)
 			await Promise.all(
 				images.map(async (image) => {
@@ -133,8 +133,8 @@ export default class Apps {
 				await appEnvironment(this.#umbreld, 'up')
 			} catch (error) {
 				this.logger.error(`Failed to start app environment`, error)
-				this.logger.log('Attempting to clean Docker state before retrying...')
-				await this.cleanDockerState()
+				// this.logger.log('Attempting to clean Docker state before retrying...')
+				// await this.cleanDockerState()
 			}
 			await pRetry(() => appEnvironment(this.#umbreld, 'up'), {
 				onFailedAttempt: (error) => {
@@ -163,7 +163,7 @@ export default class Apps {
 			this.instances.map((app) =>
 				app.start().catch((error) => {
 					// We handle individual errors here to prevent apps start from throwing
-					// if a dingle app fails.
+					// if a single app fails.
 					app.state = 'unknown'
 					this.logger.error(`Failed to start app ${app.id}`, error)
 				}),
@@ -192,6 +192,8 @@ export default class Apps {
 			},
 			retries: 2,
 		})
+
+		this.logger.log('Successfully stopped all apps...')
 	}
 
 	async isInstalled(appId: string) {

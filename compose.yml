@@ -1,0 +1,17 @@
+services:
+  umbrel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VERSION_ARG: 1.4.2
+    image: kauech/umbrel
+    container_name: umbrel
+    pid: host
+    ports:
+      - 80:80
+    volumes:
+      - ./umbrel:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: always
+    stop_grace_period: 1m

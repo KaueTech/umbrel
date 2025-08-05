@@ -106,7 +106,8 @@ export async function getDiskUsage(
 // Returns a list of all processes and their memory usage
 async function getProcessesMemory() {
 	// Get a snapshot of system CPU and memory usage
-	const ps = await $`ps -Ao pid,pss --no-header`
+	const ps = await $`docker exec --privileged ${os.hostname()} ps -Ao pid,pss --no-header`
+
 
 	// Format snapshot data
 	const processes = ps.stdout.split('\n').map((line) => {
@@ -195,7 +196,7 @@ export async function getMemoryUsage(umbreld: Umbreld): Promise<{
 // Returns a list of all processes and their cpu usage
 async function getProcessesCpu() {
 	// Get a snapshot of system CPU and memory usage
-	const top = await $`top --batch-mode --iterations 1`
+	const top = await $`docker exec --privileged ${os.hostname()} top --batch-mode --iterations 1`
 
 	// Get lines
 	const lines = top.stdout.split('\n').map((line) => line.trim().split(/\s+/))
@@ -278,33 +279,19 @@ export async function getCpuUsage(umbreld: Umbreld): Promise<{
 // umbreld gets killed.
 
 export async function shutdown(): Promise<boolean> {
-	await $`poweroff`
+	await $`pkill -f umbreld`
 
 	return true
 }
 
 export async function reboot(): Promise<boolean> {
-	await $`reboot`
+	await $`pkill -USR1 -f umbreld`
 
 	return true
 }
 
 export async function commitOsPartition(umbreld: Umbreld): Promise<boolean> {
-	try {
-		umbreld.logger.log('Committing OS partition...')
-		await $`mender commit`
-		umbreld.logger.log('Successfully commited to new OS partition.')
-		return true
-	} catch (error) {
-		if (
-			(error as ExecaError).stderr?.includes('level=error msg="Could not commit Artifact: There is nothing to commit"')
-		) {
-			umbreld.logger.log('No new OS partition to commit.')
-			return true
-		}
-		umbreld.logger.error(`Failed to commit OS partition`, error)
-		return false
-	}
+	return true
 }
 
 export async function detectDevice() {
@@ -367,91 +354,94 @@ export async function setCpuGovernor(governor: string) {
 }
 
 export async function hasWifi() {
-	const {stdout} = await $`nmcli --terse --fields TYPE device status`
-	const networkDevices = stdout.split('\n')
-
-	return networkDevices.includes('wifi')
+	return false
 }
 
 export async function getWifiNetworks() {
-	const listNetworks = await $`nmcli --terse --fields IN-USE,SSID,SECURITY,SIGNAL device wifi list`
+	return []
 
-	// Format into object
-	const networks = listNetworks.stdout.split('\n').map((item: string) => {
-		const [inUse, ssid, security, signal] = item.split(':')
-		return {
-			active: inUse === '*',
-			ssid,
-			authenticated: !!security,
-			signal: parseInt(signal),
-		}
-	})
+	// const listNetworks = await $`nmcli --terse --fields IN-USE,SSID,SECURITY,SIGNAL device wifi list`
 
-	const filteredNetworks = networks
-		// Remove duplicate and empty SSIDs
-		.filter((network, index, list) => {
-			if (network.ssid === '') return false
-			const indexOfFirstEntry = list.findIndex((item) => item.ssid === network.ssid)
-			return indexOfFirstEntry === index
-		})
-		// Reapply active status in case it got removed in filtering
-		.map((network) => {
-			network.active = network.active || networks.some((item) => item.ssid === network.ssid && item.active)
-			return network
-		})
-		// Order by SSID
-		.sort((a, b) => a.ssid.localeCompare(b.ssid))
+	// // Format into object
+	// const networks = listNetworks.stdout.split('\n').map((item: string) => {
+	// 	const [inUse, ssid, security, signal] = item.split(':')
+	// 	return {
+	// 		active: inUse === '*',
+	// 		ssid,
+	// 		authenticated: !!security,
+	// 		signal: parseInt(signal),
+	// 	}
+	// })
 
-	return filteredNetworks
+	// const filteredNetworks = networks
+	// 	// Remove duplicate and empty SSIDs
+	// 	.filter((network, index, list) => {
+	// 		if (network.ssid === '') return false
+	// 		const indexOfFirstEntry = list.findIndex((item) => item.ssid === network.ssid)
+	// 		return indexOfFirstEntry === index
+	// 	})
+	// 	// Reapply active status in case it got removed in filtering
+	// 	.map((network) => {
+	// 		network.active = network.active || networks.some((item) => item.ssid === network.ssid && item.active)
+	// 		return network
+	// 	})
+	// 	// Order by SSID
+	// 	.sort((a, b) => a.ssid.localeCompare(b.ssid))
+
+	// return filteredNetworks
 }
 
 export async function deleteWifiConnections({inactiveOnly = false}: {inactiveOnly?: boolean}) {
-	const connections = await $`nmcli --terse --fields UUID,TYPE,ACTIVE connection`
-	for (const connection of connections.stdout.split('\n')) {
-		const [uuid, type, active] = connection.split(':')
-		// Type will be something like '802-11-wireless'
-		if (!type?.includes('wireless')) continue
-		if (inactiveOnly && active === 'yes') continue
-		await $`nmcli connection delete ${uuid}`
-	}
+	throw new Error('Not supported')
+
+	// const connections = await $`nmcli --terse --fields UUID,TYPE,ACTIVE connection`
+	// for (const connection of connections.stdout.split('\n')) {
+	// 	const [uuid, type, active] = connection.split(':')
+	// 	// Type will be something like '802-11-wireless'
+	// 	if (!type?.includes('wireless')) continue
+	// 	if (inactiveOnly && active === 'yes') continue
+	// 	await $`nmcli connection delete ${uuid}`
+	// }
 }
 
 export async function connectToWiFiNetwork({ssid, password}: {ssid: string; password?: string}) {
-	let connection
-	if (password !== undefined) {
-		connection = $`nmcli device wifi connect ${ssid} password ${password}`
-	} else {
-		connection = $`nmcli device wifi connect ${ssid}`
-	}
+	throw new Error('Not supported')
 
-	try {
-		await connection
+	// let connection
+	// if (password !== undefined) {
+	// 	connection = $`nmcli device wifi connect ${ssid} password ${password}`
+	// } else {
+	// 	connection = $`nmcli device wifi connect ${ssid}`
+	// }
 
-		// Destroy any inactive WiFi connections incase we just transitioned
-		// from a previous wireless connection. We don't wanna leave that
-		// conneciton in NetworkManager since it will be out of sync with umbreld.
-		try {
-			await deleteWifiConnections({inactiveOnly: true})
-		} catch (error) {
-			console.log(`Failed to cleanup WiFi connections: ${(error as Error).message}`)
-		}
+	// try {
+	// 	await connection
 
-		return true
-	} catch (error) {
-		// We destroy the failed WiFi connection if we fail to connect to the network.
-		// This is so umbreld retains ownership of the network connection management.
-		// Otherwise if this fails nmcli will remember the connection and try to reconnect
-		// which umbreld is not aware of.
-		try {
-			await deleteWifiConnections({inactiveOnly: true})
-		} catch (error) {
-			console.log(`Failed to cleanup WiFi connections: ${(error as Error).message}`)
-		}
+	// 	// Destroy any inactive WiFi connections incase we just transitioned
+	// 	// from a previous wireless connection. We don't wanna leave that
+	// 	// conneciton in NetworkManager since it will be out of sync with umbreld.
+	// 	try {
+	// 		await deleteWifiConnections({inactiveOnly: true})
+	// 	} catch (error) {
+	// 		console.log(`Failed to cleanup WiFi connections: ${(error as Error).message}`)
+	// 	}
 
-		if (connection.exitCode === 10) throw new Error('Network not found')
-		if (connection.exitCode === 1 || connection.exitCode === 4) throw new Error('Incorrect password')
-		throw new Error('Connection failed')
-	}
+	// 	return true
+	// } catch (error) {
+	// 	// We destroy the failed WiFi connection if we fail to connect to the network.
+	// 	// This is so umbreld retains ownership of the network connection management.
+	// 	// Otherwise if this fails nmcli will remember the connection and try to reconnect
+	// 	// which umbreld is not aware of.
+	// 	try {
+	// 		await deleteWifiConnections({inactiveOnly: true})
+	// 	} catch (error) {
+	// 		console.log(`Failed to cleanup WiFi connections: ${(error as Error).message}`)
+	// 	}
+
+	// 	if (connection.exitCode === 10) throw new Error('Network not found')
+	// 	if (connection.exitCode === 1 || connection.exitCode === 4) throw new Error('Incorrect password')
+	// 	throw new Error('Connection failed')
+	// }
 }
 
 // Get IP addresses of the device
@@ -478,6 +468,8 @@ export function getIpAddresses(): string[] {
 	const excludeAddressRanges = [
 		// Local loopback (127.0.0.0/8)
 		/^127\./,
+		// Docker internal network (10.21.0.0/16)
+		/^10\.21\./,		
 		// Non-routable APIPA (169.254.0.0/16), e.g. misconfigured DHCP
 		/^169\.254\./,
 	]
@@ -500,17 +492,19 @@ const syncDnsQueue = new PQueue({concurrency: 1})
 
 // Update DNS configuration to match user settings
 export async function syncDns() {
-	return await syncDnsQueue.add(async () => {
-		const {mtimeMs: mtimeBefore} = await fse.promises.stat('/etc/resolv.conf')
-		await $`systemctl restart umbrel-dns-sync`
-		await setTimeout(1000) // evade restart limits
-		await $`systemctl restart NetworkManager`
-		let retries = 2
-		do {
-			await setTimeout(1000)
-			const {mtimeMs: mtimeAfter} = await fse.promises.stat('/etc/resolv.conf')
-			if (mtimeAfter > mtimeBefore) return true
-		} while (retries--)
-		return false
-	})
+	return true
+
+	// return await syncDnsQueue.add(async () => {
+	// 	const {mtimeMs: mtimeBefore} = await fse.promises.stat('/etc/resolv.conf')
+	// 	await $`systemctl restart umbrel-dns-sync`
+	// 	await setTimeout(1000) // evade restart limits
+	// 	await $`systemctl restart NetworkManager`
+	// 	let retries = 2
+	// 	do {
+	// 		await setTimeout(1000)
+	// 		const {mtimeMs: mtimeAfter} = await fse.promises.stat('/etc/resolv.conf')
+	// 		if (mtimeAfter > mtimeBefore) return true
+	// 	} while (retries--)
+	// 	return false
+	// })
 }
